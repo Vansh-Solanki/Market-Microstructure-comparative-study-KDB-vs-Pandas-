@@ -4,7 +4,7 @@ Status tracker for the kdb+/q vs Python market microstructure project. Update th
 
 ---
 
-## Current status: Phase 0 complete (repo scaffold in place)
+## Current status: Phase 1 complete (Python reference implementation validated)
 
 ## Environment
 
@@ -50,6 +50,7 @@ No synthetic data used or planned. This is a deliberate choice.
 - PyKX bridge: **cut from scope**. Not part of the near-term build. Could be revisited later as a standalone extension, not blocking anything here.
 - ML integration (e.g., feeding kdb+-sourced data into the XGBoost signal from the developer's resume): **cut from scope** for this phase. Pure Python vs kdb+ speed comparison only, for now.
 - Trade classification (buy/sell labeling): **in scope**. Already have LOBSTER's ground-truth `side` column to validate against once the Python/q classification logic is written.
+- Trade classification method: **simple midpoint rule** (price > midpoint → buy, price < midpoint → sell, equal → unknown), not the full Lee-Ready algorithm (which adds a tick test for trades at the midpoint). Achieves 85.82% agreement with LOBSTER ground truth on the full dataset, in the expected range for midpoint-only classification. Noted as a known limitation, not a bug, revisit only if higher accuracy becomes a goal.
 
 ## Open items
 
@@ -57,7 +58,6 @@ No synthetic data used or planned. This is a deliberate choice.
 - **GitHub repo**: local git repo initialized in Phase 0, no remote configured yet. Push once a GitHub remote is created and confirmed with the developer.
 ## Not yet started
 
-- Python reference implementation (asof join, OHLC, VWAP, spreads, trade classification)
 - q/kdb+ port
 - Row-for-row validation between Python and q outputs
 - Benchmark harness and plots
@@ -68,3 +68,15 @@ No synthetic data used or planned. This is a deliberate choice.
 ## Phase 0 complete — 2026-08-18
 
 Repo scaffolded at `kdb-vs-pandas-microstructure/` with the structure specified in `roadmap.md`: `data/` (holds `all_trades.csv`, `all_quotes.csv`, moved in from the working directory), `python/` and `q/` (placeholder files created, empty pending Phase 1/2), `results/` (empty, `.gitkeep`), plus `README.md` stub, `progress.md`, `roadmap.md`. Local git repo initialized and committed. No GitHub remote yet, not pushed.
+
+## Phase 1 complete — 2026-08-18
+
+`python/analytics.py` implements and validates all in-scope operations against `data/all_trades.csv` and `data/all_quotes.csv`:
+
+- **Asof join**: `pd.merge_asof(direction="backward")` on `sym`/`time`. **0 unmatched trades out of 123,984**, matches the Phase 0 validation.
+- **OHLC bars**: 5-minute buckets via `groupby("sym").resample("5min")`. 390 bars total (5 symbols x ~78 bars/day). AAPL's first bar: open=585.74 (matches the known planning-time check), high=587.80, low=584.61, close=587.21, volume=89,481.
+- **VWAP** by symbol: AAPL 582.72, AMZN 222.63, GOOG 569.44, INTC 26.98, MSFT 30.50.
+- **Spread metrics**: mean quoted/effective spread by symbol, e.g. AAPL quotedSpread=0.1303, effectiveSpread=0.0905; INTC/MSFT much tighter (~0.011-0.012 quoted) consistent with their lower price levels.
+- **Trade classification**: simple midpoint rule, 85.82% agreement with LOBSTER's ground-truth `side` column (see decisions log entry above for why this is expected, not a bug).
+
+Repo pushed to GitHub (`https://github.com/Vansh-Solanki/Market-Microstructure-comparative-study-KDB-vs-Pandas-`) at `main`. Next: Phase 2, q port.
