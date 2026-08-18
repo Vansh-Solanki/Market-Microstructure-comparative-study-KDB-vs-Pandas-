@@ -14,8 +14,10 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 def load_data():
     trades = pd.read_csv(DATA_DIR / "all_trades.csv", parse_dates=["time"])
     quotes = pd.read_csv(DATA_DIR / "all_quotes.csv", parse_dates=["time"])
-    trades = trades.sort_values("time").reset_index(drop=True)
-    quotes = quotes.sort_values("time").reset_index(drop=True)
+    # stable sort: ties at the same nanosecond must keep CSV row order (the
+    # actual event sequence), default quicksort silently scrambles them
+    trades = trades.sort_values("time", kind="stable").reset_index(drop=True)
+    quotes = quotes.sort_values("time", kind="stable").reset_index(drop=True)
     return trades, quotes
 
 
