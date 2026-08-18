@@ -8,7 +8,7 @@ Status tracker for the kdb+/q vs Python market microstructure project. Update th
 
 ## Environment
 
-- **q/kdb+**: installed and working on the developer's machine, verified. Note: as of Phase 0, `q` was not found on the Windows PATH nor inside the WSL Ubuntu distro checked (`docker-desktop` and `Ubuntu` are the two WSL distros present, Ubuntu has no `q` installed). Running the q port will require either installing kdb+ inside WSL, or a native Windows q install with its location added to PATH. Flagged here, not yet resolved.
+- **q/kdb+**: installed and working, confirmed in Phase 0. Lives inside the WSL Ubuntu distro at `/home/vansh/.kx/bin/q`, with `QHOME=/home/vansh/.kx` set in `~/.bashrc`. Verified with `q -q <<< '1+1'` → `2`. Repo lives under `/mnt/c/...` from WSL's perspective, so q scripts in `q/` can be run directly from a WSL shell in this directory (`q q/schema.q` etc. once written). No venv needed for q since it runs natively in WSL, not through Python.
 - **Q for Mortals**: chapters 1-9 completed, hands-on practice done.
 - **Python**: pandas available (used already for LOBSTER parsing below).
 
@@ -55,8 +55,6 @@ No synthetic data used or planned. This is a deliberate choice.
 
 - **Charting library for benchmark plots**: not yet confirmed. Default assumption is `matplotlib` unless told otherwise, see roadmap.md Phase 3.
 - **GitHub repo**: local git repo initialized in Phase 0, no remote configured yet. Push once a GitHub remote is created and confirmed with the developer.
-- **q runtime access**: see Environment note above, need WSL install or native Windows install confirmed before Phase 2 can be executed.
-
 ## Not yet started
 
 - Python reference implementation (asof join, OHLC, VWAP, spreads, trade classification)
