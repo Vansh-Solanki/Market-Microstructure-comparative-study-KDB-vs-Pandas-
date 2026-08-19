@@ -4,7 +4,7 @@ Status tracker for the kdb+/q vs Python market microstructure project. Update th
 
 ---
 
-## Current status: Phase 3 complete (benchmark harness + charts)
+## Current status: Phase 4 complete (writeup) — project done
 
 ## Environment
 
@@ -62,7 +62,7 @@ No synthetic data used or planned. This is a deliberate choice.
 
 ## Not yet started
 
-- README / writeup
+Nothing — all four roadmap phases complete.
 
 ---
 
@@ -118,4 +118,8 @@ q is faster at every tier and every operation. The asof-join speedup narrows tow
 
 Caveats (also documented as code comments in both benchmark scripts): in-memory only, not kdb+'s on-disk historical engine; chronological subsampling skews 10k/100k tiers toward the market-open period; idiomatic-not-literal q port; q's asof-join timing includes attribute setup cost that Python's doesn't need an equivalent for.
 
-Ready for Phase 4 (writeup) — not yet started.
+## Phase 4 complete — 2026-08-18
+
+`README.md` filled in properly: project description, schema, repo layout, how to run both sides, benchmark results table + embedded charts, all caveats, and a resume bullet using the real measured numbers (see Phase 3 entry above for the underlying figures).
+
+All four roadmap phases are complete. Project done, pending final commit/push.
