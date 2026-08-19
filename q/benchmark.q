@@ -35,19 +35,22 @@ ohlcOp:{[t] select open:first price, high:max price, low:min price, close:last p
   by sym, bucket:5 xbar time.minute from t}
 vwapOp:{[t] select vwap:size wavg price by sym from t}
 
-timeIt:{[f;args]
-  st:.z.p;
-  r:f . args;
-  et:.z.p;
-  1e-9*"j"$et-st}
+medianOf:{[x]
+  s:asc x;
+  n:count s;
+  $[n mod 2; s[n div 2]; avg s[(n div 2)-1,n div 2]]}
+
+timeIt:{[f;args;reps]
+  times:{[f;args;i] st:.z.p; r:f . args; et:.z.p; 1e-9*"j"$et-st}[f;args] each til reps;
+  medianOf times}
 
 benchTier:{[n]
   tSub:$[null n; tradeChrono; n#tradeChrono];
   qSub:$[null n; quoteChrono; n#quoteChrono];
   tradeN:count tSub;
-  ajSecs:timeIt[asofJoin;(tSub;qSub)];
-  ohlcSecs:timeIt[ohlcOp;enlist tSub];
-  vwapSecs:timeIt[vwapOp;enlist tSub];
+  ajSecs:timeIt[asofJoin;(tSub;qSub);5];
+  ohlcSecs:timeIt[ohlcOp;enlist tSub;5];
+  vwapSecs:timeIt[vwapOp;enlist tSub;5];
   show "tier trades=",(string tradeN)," quotes=",(string count qSub)," done";
   ([] language:`q`q`q; operation:`asof_join`ohlc`vwap; rows:3#tradeN; seconds:(ajSecs;ohlcSecs;vwapSecs))}
 

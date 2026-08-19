@@ -59,9 +59,11 @@ Full-dataset tier (123,984 trades / 1,041,889 quotes), python vs q:
 
 | Operation | Python | q | Speedup |
 |---|---|---|---|
-| Asof join | 0.381s | 0.094s | ~4.1x |
-| OHLC bars | 0.075s | 0.0043s | ~17.4x |
-| VWAP | 0.027s | 0.0016s | ~17.5x |
+| Asof join | 0.1209s | 0.0740s | ~1.6x |
+| OHLC bars | 0.0341s | 0.0044s | ~7.8x |
+| VWAP | 0.0110s | 0.0015s | ~7.4x |
+
+Each number is the median of 5 timed repeats, in both languages.
 
 q is faster at every tier and every operation.
 
@@ -81,4 +83,4 @@ Full narrative of what was tried, what broke, and why — including the two real
 
 ## Resume bullet
 
-> Built a tick-data analytics engine in Python and kdb+/q implementing asof joins, OHLC bar aggregation, VWAP, and spread/trade-classification metrics on real NASDAQ trade/quote data (1.04M+ rows); validated both implementations row-for-row and benchmarked them, measuring kdb+ up to ~17x faster than pandas on OHLC/VWAP aggregation and ~4x faster on asof joins at full scale.
+> Built a tick-data analytics engine in Python and kdb+/q implementing asof joins, OHLC bar aggregation, VWAP, and spread/trade-classification metrics on real NASDAQ trade/quote data (1.04M+ rows); validated both implementations row-for-row and benchmarked them, measuring kdb+ up to ~7.8x faster than pandas on OHLC/VWAP aggregation and ~1.6x faster on asof joins at full scale.

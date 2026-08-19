@@ -4,7 +4,7 @@ Status tracker for the kdb+/q vs Python market microstructure project. Update th
 
 ---
 
-## Current status: Phase 4 complete (writeup) — project done
+## Current status: Phase 4 complete, benchmark methodology corrected post-hoc — project done
 
 ## Environment
 
@@ -55,6 +55,7 @@ No synthetic data used or planned. This is a deliberate choice.
 - q float comparison tolerance: kdb+'s relational operators (`=`, `<`, `>`) apply a built-in near-equality tolerance for floats, so directly comparing `price` and `midpoint` (two independently-rounded doubles that are often 1-4 ULPs apart) falsely evaluated as equal far more often than in Python's exact IEEE754 comparison. Fixed in `q/analytics.q` by comparing the sign of `price-midpoint` instead of comparing the two floats directly — the difference-then-compare-to-0 pattern sidesteps the tolerance. Found during Phase 2 row-for-row validation.
 - q `aj` needs the quote table's `sym` column tagged with the `` `p# `` (parted) attribute, on data pre-sorted sym-then-time, to use its binary-search fast path. Without it, `aj` fell back to a much slower path: **~283 seconds** for the full-dataset asof join, vs **~0.03 seconds** with the attribute set — roughly a 10,000x difference, for identical results. Found while building the Phase 3 benchmark (the slow path is why early benchmark runs looked like they were silently hanging or failing). Fixed in `q/schema.q`, which now sorts `` `sym`time `` and applies `` `p#sym `` to both tables. `q/benchmark.q`'s chronological tiering needs pure time order for its subsampling, which breaks that attribute, so its `asof_join` timing includes the cost of re-sorting and re-tagging each tiered subsample — see the caveat comment in that file.
 - q parser gotcha: a line containing **only** `/` (no trailing text) toggles kdb+'s parser into multi-line block-comment mode, which is only closed by a line containing only `\`. Without a closing `\`, everything after that lone `/` is silently swallowed as a comment — no error, no output, script just does nothing. This cost significant time debugging an apparently-silent `q/benchmark.q` failure during Phase 3 before being traced to a single blank `/` separator line in a comment block. Lesson: never use a bare `/` line as a comment-block spacer in q scripts, use `/ ` (slash plus content, even just a space) or omit the separator line entirely.
+- Post-Phase-4 benchmark methodology correction (developer-made edits, reviewed and verified): the original `time_op()` in `python/benchmark.py` ran `tracemalloc.start()` for the *entire* timed region, so every "seconds" measurement included memory-tracing overhead, not just the real work — inflating every Python timing across the board. Fixed by separating the two: timing is now a **median of 5 untraced repeats** (`statistics.median`), and peak memory is measured in one separate untimed call afterward. `q/benchmark.q`'s `timeIt` was updated to match — also median of 5 repeats (hand-rolled `medianOf`, since q has no stdlib equivalent) — so both languages use the same repeat/median methodology and the comparison is symmetric. Also, `python/analytics.py`'s `vwap()` was rewritten to avoid `.apply()` (was `groupby("sym").apply(lambda g: ...)`, now a fully vectorized `notional = price*size` summed and divided by grouped `size` sums) — `.apply()` runs Python-level code per group, which is much slower than vectorized pandas ops at this row count. Net effect: Python got substantially faster (less overhead measured, and a genuinely faster VWAP implementation), which **narrows** the q/Python speedup gap from what Phase 3 originally reported — see the corrected numbers below. Re-ran `python/analytics.py` and `q/analytics.q` after these changes to confirm correctness was untouched: results identical to the Phase 2 validation (0 unmatched trades, AAPL first bar, VWAP by symbol, 74.80% classification agreement, spread summary all match to displayed precision).
 
 ## Open items
 
@@ -123,3 +124,17 @@ Caveats (also documented as code comments in both benchmark scripts): in-memory 
 `README.md` filled in properly: project description, schema, repo layout, how to run both sides, benchmark results table + embedded charts, all caveats, and a resume bullet using the real measured numbers (see Phase 3 entry above for the underlying figures).
 
 All four roadmap phases are complete. Project done, pending final commit/push.
+
+## Post-Phase-4 correction — 2026-08-19
+
+Developer-made edits (reviewed above in the decisions log): fixed a benchmark-timing methodology flaw (`tracemalloc` overhead was being included in the timed region) and rewrote `python/analytics.py`'s `vwap()` to be fully vectorized instead of using `.apply()`. Both languages now benchmark via median-of-5 repeats. Re-verified correctness first — `python/analytics.py` and `q/analytics.q` outputs are unchanged from the Phase 2 validation (0 unmatched trades, AAPL first bar, VWAP by symbol, 74.80% classification agreement, spread summary all match) — then re-ran both benchmark scripts.
+
+Corrected results (seconds, full-dataset tier: 123,984 trades / 1,041,889 quotes, median of 5 repeats):
+
+| Operation | Python | q | Speedup |
+|---|---|---|---|
+| asof_join | 0.1209 | 0.0740 | ~1.6x |
+| ohlc | 0.0341 | 0.0044 | ~7.8x |
+| vwap | 0.0110 | 0.0015 | ~7.4x |
+
+q is still faster at every tier and every operation, but the gap is smaller than Phase 3 originally reported (previously ~4.1x/~17.4x/~17.5x) — that original numbers were inflated by the tracemalloc-in-timing-loop bug and the pre-vectorization `.apply()`-based VWAP, both fixed now. **These are the current, correct numbers**; `README.md` has been updated to match. `results/benchmark_python.csv`, `results/benchmark_q.csv`, and the three `results/*.png` charts were regenerated by the developer's own runs (also re-verified their content matches the CSVs above).

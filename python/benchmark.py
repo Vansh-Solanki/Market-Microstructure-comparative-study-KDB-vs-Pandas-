@@ -17,7 +17,7 @@ Run: python python/benchmark.py
 import time
 import tracemalloc
 from pathlib import Path
-
+import statistics
 import pandas as pd
 
 from analytics import load_data, asof_join, ohlc_bars, vwap
@@ -30,14 +30,22 @@ def tier_label(n: int, full_n: int) -> int:
     return n if n is not None else full_n
 
 
-def time_op(fn, *args):
+def time_op(fn, *args, repeats=5):
+    # timing: no memory tracing running, so nothing but the real work is measured
+    times = []
+    for _ in range(repeats):
+        start = time.perf_counter()
+        result = fn(*args)
+        times.append(time.perf_counter() - start)
+    median_time = statistics.median(times)
+
+    # memory: measured separately, in its own single call, speed doesn't matter here
     tracemalloc.start()
-    start = time.perf_counter()
     result = fn(*args)
-    elapsed = time.perf_counter() - start
     _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
-    return result, elapsed, peak
+
+    return result, median_time, peak
 
 
 def run_benchmark(trades: pd.DataFrame, quotes: pd.DataFrame) -> pd.DataFrame:

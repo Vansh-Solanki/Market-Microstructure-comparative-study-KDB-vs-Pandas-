@@ -37,12 +37,11 @@ def ohlc_bars(trades: pd.DataFrame, freq: str = "5min") -> pd.DataFrame:
 
 
 def vwap(trades: pd.DataFrame) -> pd.DataFrame:
+    notional = trades["price"] * trades["size"]
+    grouped = trades.groupby("sym")["size"].sum()
     result = (
-        trades.groupby("sym")
-        .apply(lambda g: (g["price"] * g["size"]).sum() / g["size"].sum(), include_groups=False)
-        .rename("vwap")
-        .reset_index()
-    )
+        notional.groupby(trades["sym"]).sum() / grouped
+    ).rename("vwap").reset_index()
     return result
 
 
