@@ -4,7 +4,7 @@ Status tracker for the kdb+/q vs Python market microstructure project. Update th
 
 ---
 
-## Current status: Phase 2 complete (q port validated row-for-row against Python)
+## Current status: Phase 3 complete (benchmark harness + charts)
 
 ## Environment
 
@@ -53,14 +53,15 @@ No synthetic data used or planned. This is a deliberate choice.
 - Trade classification method: **simple midpoint rule** (price > midpoint → buy, price < midpoint → sell, equal → unknown), not the full Lee-Ready algorithm (which adds a tick test for trades at the midpoint). Achieves 74.80% agreement with LOBSTER ground truth on the full dataset (corrected figure, see Phase 2 entry below — an earlier unstable-sort bug had inflated this to 85.82%), in the expected range for midpoint-only classification. Noted as a known limitation, not a bug, revisit only if higher accuracy becomes a goal.
 - Sort stability: `pd.DataFrame.sort_values` must use `kind="stable"` when sorting `trade`/`quote` by `time`. Default quicksort is not stable and silently reordered same-nanosecond ties away from their original CSV row order (which reflects real event sequence), corrupting the asof join for those trades. Found during Phase 2 row-for-row validation. Fixed in `python/analytics.py`'s `load_data()`.
 - q float comparison tolerance: kdb+'s relational operators (`=`, `<`, `>`) apply a built-in near-equality tolerance for floats, so directly comparing `price` and `midpoint` (two independently-rounded doubles that are often 1-4 ULPs apart) falsely evaluated as equal far more often than in Python's exact IEEE754 comparison. Fixed in `q/analytics.q` by comparing the sign of `price-midpoint` instead of comparing the two floats directly — the difference-then-compare-to-0 pattern sidesteps the tolerance. Found during Phase 2 row-for-row validation.
+- q `aj` needs the quote table's `sym` column tagged with the `` `p# `` (parted) attribute, on data pre-sorted sym-then-time, to use its binary-search fast path. Without it, `aj` fell back to a much slower path: **~283 seconds** for the full-dataset asof join, vs **~0.03 seconds** with the attribute set — roughly a 10,000x difference, for identical results. Found while building the Phase 3 benchmark (the slow path is why early benchmark runs looked like they were silently hanging or failing). Fixed in `q/schema.q`, which now sorts `` `sym`time `` and applies `` `p#sym `` to both tables. `q/benchmark.q`'s chronological tiering needs pure time order for its subsampling, which breaks that attribute, so its `asof_join` timing includes the cost of re-sorting and re-tagging each tiered subsample — see the caveat comment in that file.
+- q parser gotcha: a line containing **only** `/` (no trailing text) toggles kdb+'s parser into multi-line block-comment mode, which is only closed by a line containing only `\`. Without a closing `\`, everything after that lone `/` is silently swallowed as a comment — no error, no output, script just does nothing. This cost significant time debugging an apparently-silent `q/benchmark.q` failure during Phase 3 before being traced to a single blank `/` separator line in a comment block. Lesson: never use a bare `/` line as a comment-block spacer in q scripts, use `/ ` (slash plus content, even just a space) or omit the separator line entirely.
 
 ## Open items
 
-- **Charting library for benchmark plots**: not yet confirmed. Default assumption is `matplotlib` unless told otherwise, see roadmap.md Phase 3.
-- **GitHub repo**: local git repo initialized in Phase 0, no remote configured yet. Push once a GitHub remote is created and confirmed with the developer.
+- **GitHub repo**: pushed and tracked at `https://github.com/Vansh-Solanki/Market-Microstructure-comparative-study-KDB-vs-Pandas-`, `main` branch.
+
 ## Not yet started
 
-- Benchmark harness and plots
 - README / writeup
 
 ---
@@ -95,4 +96,26 @@ After both fixes, full row-for-row validation (123,984 merged trade rows, 390 OH
 - **VWAP**: differs by ~1e-13 to 1e-14 per symbol — floating-point summation-order noise between q's `wavg` and pandas' `.sum()`, not a bug (explainable per roadmap's tolerance allowance).
 - **Trade classification agreement**: 74.80481% (q) vs 74.8048% (Python) — matches to displayed precision.
 
-Correctness gate cleared. Ready for Phase 3 (benchmark harness) — not yet started.
+Correctness gate cleared.
+
+## Phase 3 complete — 2026-08-18
+
+`python/benchmark.py` and `q/benchmark.q` time asof join, OHLC, and VWAP at three chronological (first-N-rows) tiers — 10k, 100k, full (123,984 trades / 1,041,889 quotes) — and `python/benchmark.py` plots the results (`matplotlib`, confirmed as the charting library, log-log axes, one line per language) to `results/benchmark_asof_join.png`, `results/benchmark_ohlc.png`, `results/benchmark_vwap.png`. Raw numbers in `results/benchmark_python.csv` and `results/benchmark_q.csv`.
+
+Two real findings surfaced while building this phase (both logged above in the decisions log):
+1. **q's `aj` needs the `` `p# `` parted attribute** on a sym-then-time-sorted quote table for its fast path — a ~10,000x difference (283s → 0.03s) on the full dataset. Fixed in `schema.q`, which benefits Phase 2's `analytics.q` as well (same correctness, much faster).
+2. **A lone `/` line silently breaks a q script** by entering block-comment mode with no closing `\`. Cost significant debugging time chasing an apparently-silent benchmark failure. Fixed by removing the bare separator line from `benchmark.q`'s header comment.
+
+Results (seconds, full-dataset tier: 123,984 trades / 1,041,889 quotes):
+
+| Operation | Python | q | Speedup |
+|---|---|---|---|
+| asof_join | 0.381 | 0.094 | ~4.1x |
+| ohlc | 0.075 | 0.0043 | ~17.4x |
+| vwap | 0.027 | 0.0016 | ~17.5x |
+
+q is faster at every tier and every operation. The asof-join speedup narrows toward this scale specifically because `benchmark.q`'s timing includes the re-sort + `` `p# `` re-tag cost forced by chronological tiering (see the decisions log entry and the caveat comment in `q/benchmark.q`) — the pure-join-only cost (no re-sort) is closer to ~0.03s, i.e. ~13x, consistent with Phase 2's discovery. Also tracked: Python peak memory via `tracemalloc` (grows from ~1.5MB at 10k rows to ~78MB at full scale for asof_join); not tracked on the q side (awkward to measure per-op without external tooling, noted as a caveat per roadmap allowance).
+
+Caveats (also documented as code comments in both benchmark scripts): in-memory only, not kdb+'s on-disk historical engine; chronological subsampling skews 10k/100k tiers toward the market-open period; idiomatic-not-literal q port; q's asof-join timing includes attribute setup cost that Python's doesn't need an equivalent for.
+
+Ready for Phase 4 (writeup) — not yet started.
