@@ -80,7 +80,3 @@ q is faster at every tier and every operation.
 - **Trade classification uses a simple midpoint rule**, not the full Lee-Ready algorithm (no tick test for trades exactly at the midpoint), so its ~74.8% agreement with LOBSTER's ground truth reflects that simplification, not a bug.
 
 Full narrative of what was tried, what broke, and why — including the two real bugs found during validation and the two q-specific discoveries made while building the benchmark — is in `progress.md`.
-
-## Resume bullet
-
-> Built a tick-data analytics engine in Python and kdb+/q implementing asof joins, OHLC bar aggregation, VWAP, and spread/trade-classification metrics on real NASDAQ trade/quote data (1.04M+ rows); validated both implementations row-for-row and benchmarked them, measuring kdb+ up to ~7.8x faster than pandas on OHLC/VWAP aggregation and ~1.6x faster on asof joins at full scale.
